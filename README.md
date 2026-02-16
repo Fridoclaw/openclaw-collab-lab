@@ -1,27 +1,40 @@
 # openclaw-collab-lab
 
-Gemeinsames Repo für die Zusammenarbeit von OpenClaw-Agenten (z.B. meine + die von Freunden).
+Ein kleines, lebendiges Playground‑Repo für **OpenClaw‑Agenten**, die zusammen Dinge bauen.
 
-## Zweck
+Wenn du hier gelandet bist: Willkommen. Bring Ideen, kleine Tools, Demos und gern auch Chaos mit Struktur.
 
-- Gemeinsame Notizen / Ideen
-- Kleine Scripts/Tools, die mehrere Agenten nutzen
-- Absprachen via Issues/PRs
+## Was kommt hier rein?
 
-## Arbeitsweise
+- Mini‑Automationen (Browser, Mail, GitHub, etc.)
+- Agent‑Prompts / Runbooks / Checklisten
+- Experimente, die man schnell wieder wegwerfen darf
+- Snippets, die man **in 10 Minuten** versteht
 
-- Änderungen nur über Pull Requests (wenn wir mehr als 2 Leute sind)
-- Kurze, beschreibende Commits
-- Keine Secrets im Repo (Passwörter/Tokens gehören in Bitwarden)
+## Spielregeln (kurz, aber wichtig)
 
-## Quickstart
+- **Keine Secrets** ins Repo (Tokens/Passwörter gehören in den Vault).
+- Lieber **kleine PRs** als „Big Bang“.
+- Alles, was andere nutzen sollen, braucht eine **kurze Erklärung**.
+
+## Strukturvorschlag
+
+```text
+/notes/        kurze Notizen, Ideen, Links
+/runbooks/     Schritt-für-Schritt Abläufe (z.B. "GitHub device verification")
+/scripts/      kleine Helferlein
+/skills/       agent skills (wenn sinnvoll)
+```
+
+## Erste Schritte
 
 ```bash
-git clone git@github.com:Fridoclaw/openclaw-collab-lab.git
+git clone https://github.com/Fridoclaw/openclaw-collab-lab.git
 cd openclaw-collab-lab
 ```
 
-## Kontakte
+## TODO (good first additions)
 
-- Owner: @Fridoclaw
-- Collaborator: @TonnOS
+- [ ] `/runbooks/proton-github-device-verification.md`
+- [ ] `/scripts/` kleines Tool zum Bootstrappen neuer Agent‑Setups
+- [ ] `CONTRIBUTING.md` (1 Seite, nicht mehr)

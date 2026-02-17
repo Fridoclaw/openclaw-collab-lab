@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Racer 2D</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: Inter, system-ui, sans-serif; background:#0b1020; color:#e9ecff; display:grid; place-items:center; min-height:100vh; }
+    .wrap { width:min(900px,96vw); }
+    h1 { margin:0 0 8px; font-size:1.35rem; }
+    .sub { opacity:.8; margin:0 0 12px; }
+    canvas { width:100%; aspect-ratio:16/9; background:#111; border:1px solid #2e365d; border-radius:12px; display:block; }
+    .hud { margin-top:10px; display:flex; gap:12px; flex-wrap:wrap; font-size:.95rem; }
+    .chip { background:#151c33; border:1px solid #2b3561; padding:6px 10px; border-radius:999px; }
+    .kbd { background:#1b2548; padding:1px 6px; border-radius:6px; border:1px solid #33407a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🏁 Agent Racer 2D</h1>
+    <p class="sub">Ein kleines Fun-Game für's Collab-Repo: Weiche Hindernissen aus, sammle Boosts und überhole Bot-Agenten.</p>
+    <canvas id="game" width="960" height="540"></canvas>
+    <div class="hud">
+      <div class="chip">Steuerung: <span class="kbd">←</span> <span class="kbd">→</span> &nbsp; | &nbsp; Boost: <span class="kbd">Space</span></div>
+      <div class="chip" id="status">Status: Ready</div>
+      <div class="chip" id="laps">Runden: 0/3</div>
+      <div class="chip" id="pos">Position: 4/4</div>
+    </div>
+  </div>
+
+  <script>
+    const c = document.getElementById('game');
+    const ctx = c.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const lapsEl = document.getElementById('laps');
+    const posEl = document.getElementById('pos');
+
+    const keys = { left:false, right:false, boost:false };
+    addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') keys.left = true;
+      if (e.key === 'ArrowRight') keys.right = true;
+      if (e.code === 'Space') keys.boost = true;
+    });
+    addEventListener('keyup', e => {
+      if (e.key === 'ArrowLeft') keys.left = false;
+      if (e.key === 'ArrowRight') keys.right = false;
+      if (e.code === 'Space') keys.boost = false;
+    });
+
+    const track = { left:220, right:740, top:40, bottom:500, lineY:70 };
+    const laneCount = 4;
+    const laneW = (track.right-track.left)/laneCount;
+
+    function laneX(i){ return track.left + i*laneW + laneW/2; }
+
+    function makeCar(name,color,lane,isPlayer=false){
+      return { name,color,lane,x:laneX(lane),y:isPlayer?430:430+Math.random()*10,speed:0,base: isPlayer?4.7:4.1+Math.random()*0.55,boost:100,laps:0,progress:0,done:false,isPlayer, wobble:Math.random()*999 };
+    }
+
+    const racers = [
+      makeCar('Du','#56e39f',1,true),
+      makeCar('Sisyphus','#62b0ff',0),
+      makeCar('Prometheus','#ffcf5a',2),
+      makeCar('Atlas','#ff7a9e',3),
+    ];
+    const player = racers[0];
+
+    const cones = [];
+    const boosts = [];
+    let tick=0;
+    let gameOver=false;
+
+    function spawnStuff(){
+      if (Math.random()<0.06) cones.push({lane:Math.floor(Math.random()*laneCount), y:-20});
+      if (Math.random()<0.02) boosts.push({lane:Math.floor(Math.random()*laneCount), y:-20});
+    }
+
+    function collide(a,bx,by,bw,bh){ return a.x-20<bx+bw && a.x+20>bx && a.y-30<by+bh && a.y+30>by; }
+
+    function updateCar(car){
+      if (car.done) return;
+      if (car.isPlayer){
+        if(keys.left) car.x -= 7;
+        if(keys.right) car.x += 7;
+        car.x = Math.max(track.left+22, Math.min(track.right-22, car.x));
+        let s = car.base;
+        if (keys.boost && car.boost>0){ s += 2.7; car.boost -= 1.2; }
+        else car.boost = Math.min(100, car.boost + 0.35);
+        car.speed = s;
+      } else {
+        // simple fun AI
+        car.wobble += 0.03;
+        if (Math.random()<0.02) car.lane = Math.max(0, Math.min(laneCount-1, car.lane + (Math.random()<0.5?-1:1)));
+        const target = laneX(car.lane) + Math.sin(car.wobble)*7;
+        car.x += (target-car.x)*0.12;
+        car.speed = car.base + (Math.sin(car.wobble*1.3)+1)*0.35;
+      }
+
+      car.progress += car.speed;
+      if (car.progress >= 1000){
+        car.progress -= 1000;
+        car.laps += 1;
+        if (car.laps>=3){ car.done=true; }
+      }
+    }
+
+    function updateWorld(){
+      tick++;
+      spawnStuff();
+
+      racers.forEach(updateCar);
+
+      // move objects towards player (illusion of speed)
+      for (const o of cones) o.y += 6.2;
+      for (const b of boosts) b.y += 5.2;
+
+      // collisions player
+      for (const o of cones){
+        const x = laneX(o.lane)-12;
+        if (collide(player,x,o.y,24,24)){ player.progress = Math.max(0, player.progress-30); player.boost = Math.max(0, player.boost-12); }
+      }
+      for (let i=boosts.length-1;i>=0;i--){
+        const b=boosts[i], x=laneX(b.lane)-10;
+        if (collide(player,x,b.y,20,20)){ player.boost=Math.min(100,player.boost+28); boosts.splice(i,1); }
+      }
+
+      // cleanup
+      while(cones.length && cones[0].y>560) cones.shift();
+      while(boosts.length && boosts[0].y>560) boosts.shift();
+
+      // ranking
+      const rank=[...racers].sort((a,b)=>(b.laps*1000+b.progress)-(a.laps*1000+a.progress));
+      const pos = rank.findIndex(r=>r===player)+1;
+      posEl.textContent = `Position: ${pos}/4`;
+      lapsEl.textContent = `Runden: ${Math.min(3,player.laps)}/3`;
+
+      if (!gameOver && racers.some(r=>r.done)){
+        gameOver=true;
+        const winner = rank[0].name;
+        statusEl.textContent = winner===player.name ? 'Status: 🏆 Du gewinnst!' : `Status: ${winner} gewinnt!`;
+      } else if (!gameOver) {
+        statusEl.textContent = `Status: Boost ${Math.round(player.boost)}%`;
+      }
+    }
+
+    function drawTrack(){
+      ctx.fillStyle='#161d33'; ctx.fillRect(0,0,c.width,c.height);
+      ctx.fillStyle='#2a3154'; ctx.fillRect(track.left,track.top,track.right-track.left,track.bottom-track.top);
+      ctx.strokeStyle='#6f7bb8'; ctx.lineWidth=4; ctx.strokeRect(track.left,track.top,track.right-track.left,track.bottom-track.top);
+      // lane markers
+      ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=2;
+      for(let i=1;i<laneCount;i++){
+        const x=track.left+i*laneW;
+        for(let y=track.top;y<track.bottom;y+=22){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+12); ctx.stroke(); }
+      }
+      // finish line
+      for(let i=0;i<16;i++){
+        for(let j=0;j<2;j++){
+          ctx.fillStyle=(i+j)%2?'#fff':'#000';
+          ctx.fillRect(track.left+i*(track.right-track.left)/16, track.lineY+j*10, (track.right-track.left)/16, 10);
+        }
+      }
+    }
+
+    function drawObjects(){
+      for(const o of cones){
+        const x=laneX(o.lane);
+        ctx.fillStyle='#ff8f2a';
+        ctx.beginPath(); ctx.moveTo(x,o.y); ctx.lineTo(x-12,o.y+24); ctx.lineTo(x+12,o.y+24); ctx.fill();
+      }
+      for(const b of boosts){
+        const x=laneX(b.lane);
+        ctx.fillStyle='#62d3ff';
+        ctx.beginPath();
+        for(let i=0;i<5;i++){ const a = i*Math.PI*2/5 - Math.PI/2; const r=i%2?6:12; ctx.lineTo(x+Math.cos(a)*r,b.y+Math.sin(a)*r); }
+        ctx.closePath(); ctx.fill();
+      }
+    }
+
+    function drawCar(car){
+      ctx.save(); ctx.translate(car.x,car.y);
+      ctx.fillStyle=car.color; ctx.fillRect(-16,-26,32,52);
+      ctx.fillStyle='#0b0f1c'; ctx.fillRect(-10,-18,20,16);
+      ctx.fillStyle='#dfe8ff'; ctx.font='10px Inter'; ctx.textAlign='center';
+      ctx.fillText(car.name,0,38);
+      ctx.restore();
+    }
+
+    function draw(){
+      drawTrack();
+      drawObjects();
+      racers.slice().sort((a,b)=>a.y-b.y).forEach(drawCar);
+    }
+
+    function loop(){
+      if(!gameOver) updateWorld();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
